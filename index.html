@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Frota Itaquera</title>
+    
+    <link rel="manifest" href="manifest.json">
+    
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="shortcut icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <meta name="theme-color" content="#4f5f89">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <meta property="og:title" content="Gerenciador de Frota - Itaquera">
+    <meta property="og:description" content="Acesse o gestor da Frota. Controles de bastecimentos, checklists e Refrigeração: Agora tudo em um único lugar!">
+    <meta property="og:image" content="https://raw.githubusercontent.com/mesaque-zake/Frota-Itaquera/refs/heads/main/social-share.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        /* Fundo do corpo azul para evitar faixas brancas ao girar a tela */
+        body, html { 
+            width: 100%; 
+            height: 100%; 
+            overflow: hidden; 
+            background-color: #4f5f89; 
+        }
+
+        /* --- TELA DE CARREGAMENTO --- */
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #4f5f89;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.8s ease, backdrop-filter 0.8s ease;
+        }
+
+        .fade-out {
+            opacity: 0;
+            pointer-events: none;
+            backdrop-filter: blur(0px);
+        }
+
+        /* LOGO */
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+
+        .logo-text {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 3rem;
+            color: white;
+            letter-spacing: 0.2rem;
+        }
+
+        /* ANIMAÇÃO DO PNEU */
+        .pneu-icon {
+            width: 50px;
+            height: auto;
+            animation: spin 1.5s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .chave-icon {
+            width: 120px;
+            height: auto;
+            margin-top: -10px;
+        }
+
+        /* RODAPÉ */
+        .footer {
+            position: absolute;
+            bottom: 30px;
+            text-align: center;
+            color: white;
+            font-family: sans-serif;
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+        
+        .mesa-logo {
+            height: 30px;
+            display: block;
+            margin: 0 auto 10px auto;
+        }
+
+        .powered-by { font-weight: 300; }
+
+        /* --- IFRAME --- */
+        iframe {
+            width: 100vw;
+            height: 100vh; /* Ocupa 100% da altura */
+            border: none;
+            display: block;
+            background-color: #ffffff; /* Fundo padrão enquanto carrega */
+        }
+
+        /* Para evitar que o iFrame fique branco no Dark Mode antes de carregar, 
+           podemos deixar transparente inicialmente, mas branco é mais seguro para o GAS */
+
+        /* --- AVISO OFFLINE --- */
+        #offline-warning {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #4f5f89;
+            z-index: 10000;
+            color: white;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-family: 'Poppins', sans-serif;
+        }
+        .btn-reload {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: white;
+            color: #4f5f89;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="logo-container">
+            <span class="logo-text">FR</span>
+            <img src="icon-pneu.png" alt="O" class="pneu-icon">
+            <span class="logo-text">TA</span>
+        </div>
+        <img src="icon-chave.png" alt="Ferramenta" class="chave-icon">
+
+        <div class="footer">
+            <img src="MesaLogo.png" alt="Mesaque Logo" class="mesa-logo">
+            <div class="powered-by">
+                Powered with &#10084; by <strong>Mesaque</strong>
+            </div>
+        </div>
+    </div>
+
+    <div id="offline-warning">
+        <img src="icon-pneu.png" style="width: 60px; margin-bottom: 20px; opacity: 0.7;">
+        <h2>Sem Conexão</h2>
+        <p>Verifique sua internet.</p>
+        <button class="btn-reload" onclick="window.location.reload()">Tentar Novamente</button>
+    </div>
+
+    <iframe id="gas-frame" src="000"></iframe>
+
+    <script>
+        // PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js');
+            });
+        }
+
+        // LOADING
+        const loadingScreen = document.getElementById('loading-screen');
+        
+        function hideLoading() {
+            loadingScreen.classList.add('fade-out');
+            setTimeout(() => { loadingScreen.style.display = 'none'; }, 1000); 
+        }
+
+        // Tempo de segurança
+        setTimeout(hideLoading, 3000);
+
+        // OFFLINE
+        function updateOnlineStatus() {
+            const offlineScreen = document.getElementById('offline-warning');
+            if (navigator.onLine) {
+                offlineScreen.style.display = 'none';
+            } else {
+                offlineScreen.style.display = 'flex';
+            }
+        }
+        window.addEventListener('online',  updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        if(!navigator.onLine) updateOnlineStatus();
+    </script>
+</body>
+</html>
